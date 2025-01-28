@@ -1,6 +1,16 @@
 # Product Authentication System
 
-A decentralized product authentication system built on the blockchain that enables brands and manufacturers to create, verify, and track authentic products using NFTs.
+A decentralized product authentication system built on Polygon blockchain that enables brands and manufacturers to create, verify, and track authentic products using NFTs.
+
+## 🌐 Why Polygon?
+
+This system is specifically built for the Polygon network, offering several advantages:
+- **Low Transaction Costs**: Significantly reduced gas fees compared to Ethereum mainnet
+- **High Speed**: Fast block confirmation times (~2 seconds)
+- **Ethereum Compatibility**: Full EVM compatibility while maintaining scalability
+- **Enterprise Ready**: Suitable for high-volume product authentication
+- **Green Blockchain**: Energy-efficient Proof of Stake consensus
+- **Network Stability**: High uptime and robust infrastructure
 
 ## 🔧 Tech Stack
 
