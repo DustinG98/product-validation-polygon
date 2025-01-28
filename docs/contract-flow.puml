@@ -1,0 +1,97 @@
+@startuml Product Authentication Flow
+
+' Styling
+skinparam actorStyle awesome
+skinparam backgroundColor #FFFFFF
+skinparam handwritten false
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam sequence {
+    ArrowColor #2C3E50
+    LifeLineBorderColor #34495E
+    LifeLineBackgroundColor #ECF0F1
+    ParticipantBorderColor #2980B9
+    ParticipantBackgroundColor #3498DB
+    ParticipantFontColor #FFFFFF
+    ActorBorderColor #16A085
+    ActorBackgroundColor #1ABC9C
+    ActorFontColor #FFFFFF
+}
+
+' Custom actor styling
+skinparam actor {
+    BorderColor Black
+    FontStyle bold
+}
+
+' Actors with distinct colors and clear names
+actor "<b>BRAND OWNER</b>\n<size:12><color:#E74C3C>BRAND:\n◈ Creates Products\n◈ Approves Batches\n◈ Mints Tokens</color></size>" as Brand #E74C3C
+actor "<b>MANUFACTURER</b>\n<size:12><color:#27AE60>MANUFACTURER:\n◈ Requests Production\n◈ Produces Batches</color></size>" as Manufacturer #27AE60
+actor "<b>END USER</b>\n<size:12><color:#3498DB>END USER:\n◈ Owns Tokens\n◈ Verifies Products</color></size>" as EndUser #3498DB
+
+' Contracts
+participant BrandRegistry as "BrandRegistry\nContract"
+participant ManufacturerRegistry as "ManufacturerRegistry\nContract"
+participant ProductRegistry as "ProductRegistry\nContract"
+participant ProductToken as "ProductToken\nContract"
+database IPFS as "IPFS Storage"
+
+' Initial Registration Flow
+== Registration Phase ==
+Brand -> BrandRegistry: addBrand(ipfsHash)
+activate BrandRegistry
+BrandRegistry -> IPFS: Store Brand Metadata
+BrandRegistry --> Brand: Return brandId
+deactivate BrandRegistry
+
+Manufacturer -> ManufacturerRegistry: addManufacturer(ipfsHash)
+activate ManufacturerRegistry
+ManufacturerRegistry -> IPFS: Store Manufacturer Metadata
+ManufacturerRegistry --> Manufacturer: Return manufacturerId
+deactivate ManufacturerRegistry
+
+== Product Creation Phase ==
+Brand -> ProductRegistry: addProduct(ipfsHash, brandId)
+activate ProductRegistry
+ProductRegistry -> IPFS: Store Product Metadata
+ProductRegistry -> ProductRegistry: Create Verification Record
+ProductRegistry --> Brand: Return productId
+deactivate ProductRegistry
+
+== Production Request Phase ==
+Manufacturer -> ProductToken: requestBatch(manufacturerId, productId, quantity, ipfsHash)
+activate ProductToken
+ProductToken -> IPFS: Store Batch Metadata
+ProductToken -> ProductToken: Create Batch Request\nStore manufacturerId
+ProductToken --> Manufacturer: Return batchId
+deactivate ProductToken
+
+== Batch Approval Phase ==
+Brand -> ProductToken: approveBatch(batchId)
+activate ProductToken
+ProductToken -> ProductRegistry: setProductionDetails(productId, manufacturerId, batchId)
+note right: Stores both manufacturerId\nand batchId in verification record
+ProductToken -> ProductToken: Mark Batch as Verified\nLink Brand to Batch
+ProductToken --> Brand: Batch Approved
+deactivate ProductToken
+
+== Token Minting Phase ==
+Brand -> ProductToken: mintProduct(batchId, recipient)
+activate ProductToken
+ProductToken -> ProductToken: Mint ERC1155 Token\nStore Token->Batch mapping
+ProductToken --> EndUser: Receive Token
+deactivate ProductToken
+
+== Verification Phase ==
+EndUser -> ProductToken: getTokenDetails(tokenId)
+activate ProductToken
+ProductToken -> ProductToken: Get Batch Info\n(includes manufacturerId, batchId)
+ProductToken -> ProductRegistry: Get Product & Verification Info\n(includes manufacturerId, batchId)
+ProductToken -> BrandRegistry: Get Brand Info
+ProductToken -> ManufacturerRegistry: Get Manufacturer Info
+note right: Complete verification chain:\nToken -> Batch -> Product -> Brand/Manufacturer
+ProductToken --> EndUser: Complete Authentication Data
+deactivate ProductToken
+
+@enduml
