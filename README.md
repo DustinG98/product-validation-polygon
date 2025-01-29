@@ -153,12 +153,12 @@ npm run deploy:amoy BrandRegistry
 npm run deploy:amoy ManufacturerRegistry
 npm run deploy:amoy <brandRegistryAddress> ProductRegistry 
 npm run deploy:amoy <productRegistryAddress> <brandRegistryAddress> <manufacturerRegistryAddress> ProductToken
-```
 
 ### Environment Setup
 
 Required environment variables:
 ```env
+FEE_COLLECTOR_ADDRESS=    # Fee collector address
 POLYGON_MAINNET_WS_URL=    # Mainnet WS RPC URL
 POLYGON_TESTNET_URL=    # Amoy testnet RPC URL
 NEXT_PUBLIC_WEB3_STORAGE_TOKEN=    # Web3 Storage API token (Storacha)
@@ -215,6 +215,49 @@ PRIVATE_KEY=           # Deployment wallet private key
 - Ownership verification
 - Multi-step authentication process
 - Immutable record keeping
+
+## 💰 Fee Structure
+
+The system implements a modest fee structure to maintain sustainability and prevent spam while keeping costs reasonable for legitimate users.
+
+### Registry Operations
+
+All registry contracts (Brand, Manufacturer, Product) include the following fees:
+
+- **Registration Fee**: 0.001 ETH (~$2-3)
+  - Charged when registering new brands, manufacturers, or products
+  - One-time fee per entity
+
+- **Transfer Fee**: 0.0005 ETH (~$1-1.5)
+  - Charged when transferring ownership of any entity
+  - Applied to brand transfers, manufacturer transfers, and product transfers
+
+### Product Token Operations
+
+The ProductToken contract includes additional fees for batch and minting operations:
+
+- **Batch Request Fee**: 0.001 ETH (~$2-3)
+  - Charged when manufacturers request a new batch of products
+  - One-time fee per batch, regardless of quantity
+
+- **Minting Fee**: 0.0002 ETH (~$0.50)
+  - Charged when minting individual product tokens
+  - Per-token fee that scales with quantity
+
+### Fee Management
+
+- Fees are collected by a designated fee collector address
+- Fee amounts can be adjusted by the fee collector to respond to market conditions
+- All fee collections and updates are tracked through blockchain events
+- Fees are denominated in ETH but paid in MATIC on the Polygon network
+
+### Benefits
+
+- Low fees encourage legitimate usage while deterring spam
+- Per-operation pricing ensures fair cost distribution
+- Scaling fees (like minting) align costs with system usage
+- Transparent fee structure with on-chain verification
+- Fee collector role enables future DAO governance
 
 ## 📝 License
 

@@ -10,8 +10,10 @@ contract BrandRegistry is BaseRegistry, IBrandRegistry {
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
 
-    function addBrand(string memory ipfsHash) external override returns (uint256) {
-        return _addEntity(ipfsHash);
+    constructor(address _feeCollector) BaseRegistry(_feeCollector) {}
+
+    function addBrand(string memory ipfsHash) external payable override returns (uint256) {
+        return addEntity(ipfsHash);
     }
 
     function getBrand(uint256 brandId) external view override validEntityId(brandId) returns (Brand memory) {
@@ -19,7 +21,7 @@ contract BrandRegistry is BaseRegistry, IBrandRegistry {
         return Brand(entity.owner, entity.ipfsHash, entity.timestamp);
     }
 
-    function transferBrand(uint256 brandId, address newOwner) external override onlyEntityOwner(brandId) {
-        _transferEntity(brandId, newOwner);
+    function transferBrand(uint256 brandId, address newOwner) external payable override onlyEntityOwner(brandId) {
+        transferEntity(brandId, newOwner);
     }
 }

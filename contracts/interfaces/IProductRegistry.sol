@@ -19,8 +19,8 @@ interface IProductRegistry {
     }
 
     function getProduct(uint256 productId) external view returns (Product memory);
-    function addProduct(string memory ipfsHash, uint256 brandId) external returns (uint256);
-    function transferProduct(uint256 productId, address newOwner) external;
+    function addProduct(string memory ipfsHash, uint256 brandId) external payable returns (uint256);
+    function transferProduct(uint256 productId, address newOwner) external payable;
     function verifyProduct(
         uint256 productId,
         uint256 brandId,

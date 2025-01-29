@@ -11,14 +11,27 @@ contract ProductToken is ERC1155 {
     IBrandRegistry public brandRegistry;
     IManufacturerRegistry public manufacturerRegistry;
 
+    // Fee configuration
+    uint256 public batchRequestFee;
+    uint256 public mintFee;
+    address public feeCollector;
+
+    event FeeUpdated(string feeType, uint256 newAmount);
+    event FeeCollected(address from, uint256 amount, string feeType);
+
     constructor(
         address _productRegistry,
         address _brandRegistry,
-        address _manufacturerRegistry
+        address _manufacturerRegistry,
+        address _feeCollector
     ) ERC1155("") {
         productRegistry = IProductRegistry(_productRegistry);
         brandRegistry = IBrandRegistry(_brandRegistry);
         manufacturerRegistry = IManufacturerRegistry(_manufacturerRegistry);
+        
+        feeCollector = _feeCollector;
+        batchRequestFee = 0.001 ether;  // Default 0.001 ETH (around $2-3)
+        mintFee = 0.0002 ether;         // Default 0.0002 ETH (around $0.50)
     }
 
     struct BatchInfo {
@@ -44,12 +57,40 @@ contract ProductToken is ERC1155 {
     event BatchApproved(uint256 indexed batchId, uint256 indexed brandId);
     event ProductMinted(uint256 indexed tokenId, uint256 indexed batchId, address indexed recipient);
 
+    // Fee management functions
+    function setBatchRequestFee(uint256 _fee) external {
+        require(msg.sender == feeCollector, "Only fee collector can update fees");
+        batchRequestFee = _fee;
+        emit FeeUpdated("batchRequest", _fee);
+    }
+
+    function setMintFee(uint256 _fee) external {
+        require(msg.sender == feeCollector, "Only fee collector can update fees");
+        mintFee = _fee;
+        emit FeeUpdated("mint", _fee);
+    }
+
+    function setFeeCollector(address _newCollector) external {
+        require(msg.sender == feeCollector, "Only current fee collector can update");
+        feeCollector = _newCollector;
+    }
+
+    function _collectFee(uint256 fee, string memory feeType) internal {
+        require(msg.value >= fee, "Insufficient fee");
+        (bool sent, ) = feeCollector.call{value: fee}("");
+        require(sent, "Failed to send fee");
+        emit FeeCollected(msg.sender, fee, feeType);
+    }
+
     function requestBatch(
         uint256 manufacturerId,
         uint256 productId,
         uint256 quantity,
         string memory ipfsHash
-    ) external returns (uint256) {
+    ) external payable returns (uint256) {
+        // Collect batch request fee
+        _collectFee(batchRequestFee, "batchRequest");
+        
         // Verify caller is manufacturer owner
         require(manufacturerRegistry.getManufacturer(manufacturerId).owner == msg.sender, "Not manufacturer owner");
         
@@ -103,7 +144,10 @@ contract ProductToken is ERC1155 {
     function mintProduct(
         uint256 batchId,
         address recipient
-    ) external returns (uint256) {
+    ) external payable returns (uint256) {
+        // Collect minting fee
+        _collectFee(mintFee, "mint");
+        
         require(batchInfo[batchId].isVerified, "Batch not verified");
         require(batchInfo[batchId].remainingSupply > 0, "Batch depleted");
         

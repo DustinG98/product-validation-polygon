@@ -13,7 +13,7 @@ contract ProductRegistry is BaseRegistry, IProductRegistry {
 
     IBrandRegistry public brandRegistry;
 
-    constructor(address _brandRegistry) {
+    constructor(address _brandRegistry, address _feeCollector) BaseRegistry(_feeCollector) {
         brandRegistry = IBrandRegistry(_brandRegistry);
     }
 
@@ -28,11 +28,11 @@ contract ProductRegistry is BaseRegistry, IProductRegistry {
     );
     event VerificationRevoked(uint256 indexed productId);
 
-    function addProduct(string memory ipfsHash, uint256 brandId) external override returns (uint256) {
+    function addProduct(string memory ipfsHash, uint256 brandId) external payable override returns (uint256) {
         // Verify caller is brand owner
         require(brandRegistry.getBrand(brandId).owner == msg.sender, "Not brand owner");
         
-        uint256 productId = _addEntity(ipfsHash);
+        uint256 productId = addEntity(ipfsHash);
         
         // Auto-verify product for brand
         verificationRecords[productId] = VerificationRecord({
@@ -55,8 +55,8 @@ contract ProductRegistry is BaseRegistry, IProductRegistry {
         return Product(entity.owner, entity.ipfsHash, entity.timestamp, isVerified);
     }
 
-    function transferProduct(uint256 productId, address newOwner) external override onlyEntityOwner(productId) {
-        _transferEntity(productId, newOwner);
+    function transferProduct(uint256 productId, address newOwner) external payable override onlyEntityOwner(productId) {
+        transferEntity(productId, newOwner);
     }
 
     function verifyProduct(

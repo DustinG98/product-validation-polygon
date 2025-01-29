@@ -1,6 +1,6 @@
 //ethers v6 deploy script
 
-import { ethers } from 'ethers';
+import { ethers, resolveAddress } from 'ethers';
 import {testConnection} from './test-connection';
 
 const deploy = async (testnet: boolean = false, contractName: string, args: any[] = []) => {
@@ -15,7 +15,8 @@ const deploy = async (testnet: boolean = false, contractName: string, args: any[
     // get contracts artifacts
     const contractArtifacts = require(`../artifacts/contracts/${contractName}.sol/${contractName}.json`);
     const contractFactory = new ethers.ContractFactory(contractArtifacts.abi, contractArtifacts.bytecode, wallet);
-    const contract = await contractFactory.deploy(...args);
+
+    const contract = await contractFactory.deploy(...args, process.env.FEE_COLLECTOR_ADDRESS as string);
     await contract.waitForDeployment();
     console.log(`Contract deployed to address: ${await contract.getAddress()}`);
     return contract;

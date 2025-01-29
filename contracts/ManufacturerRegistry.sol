@@ -10,8 +10,10 @@ contract ManufacturerRegistry is BaseRegistry, IManufacturerRegistry {
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
 
-    function addManufacturer(string memory ipfsHash) external override returns (uint256) {
-        return _addEntity(ipfsHash);
+    constructor(address _feeCollector) BaseRegistry(_feeCollector) {}
+
+    function addManufacturer(string memory ipfsHash) external payable override returns (uint256) {
+        return addEntity(ipfsHash);
     }
 
     function getManufacturer(uint256 manufacturerId) external view override validEntityId(manufacturerId) returns (ManufacturerStruct memory) {
@@ -19,7 +21,7 @@ contract ManufacturerRegistry is BaseRegistry, IManufacturerRegistry {
         return ManufacturerStruct(entity.owner, entity.ipfsHash, entity.timestamp);
     }
 
-    function transferManufacturer(uint256 manufacturerId, address newOwner) external override onlyEntityOwner(manufacturerId) {
-        _transferEntity(manufacturerId, newOwner);
+    function transferManufacturer(uint256 manufacturerId, address newOwner) external payable override onlyEntityOwner(manufacturerId) {
+        transferEntity(manufacturerId, newOwner);
     }
 }

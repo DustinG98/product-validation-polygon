@@ -9,6 +9,6 @@ interface IBrandRegistry {
     }
 
     function getBrand(uint256 brandId) external view returns (Brand memory);
-    function addBrand(string memory ipfsHash) external returns (uint256);
-    function transferBrand(uint256 brandId, address newOwner) external;
+    function addBrand(string memory ipfsHash) external payable returns (uint256);
+    function transferBrand(uint256 brandId, address newOwner) external payable;
 }
