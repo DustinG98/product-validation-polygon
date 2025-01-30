@@ -10,8 +10,8 @@
     "test-connection:amoy": "tsx scripts/test-connection.ts --testnet",
     "deploy:mainnet": "tsx scripts/ethers-deploy.ts",
     "deploy:amoy": "tsx scripts/ethers-deploy.ts --testnet",
-    "deploy-factory:mainnet": "tsx scripts/ethers-deploy-factory.ts",
-    "deploy-factory:amoy": "tsx scripts/ethers-deploy-factory.ts --testnet",
+    "deploy-all:mainnet": "tsx scripts/ethers-deploy-all.ts",
+    "deploy-all:amoy": "tsx scripts/ethers-deploy-all.ts --testnet",
     "compile": "npx hardhat compile"
   },
   "dependencies": {

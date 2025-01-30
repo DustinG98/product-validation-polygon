@@ -76,83 +76,80 @@ The system implements a secure flow for product authentication:
 
 ## 🚀 Deployment
 
+The system uses a factory-based deployment approach through the `CoreRegistryDeployer` contract, which handles the deployment of all core registries in a single transaction.
+
 ### Prerequisites
+
+Before deploying, ensure you have:
+
+1. Installed all dependencies:
 ```bash
 npm install
 ```
 
-### Available Scripts
+2. Set up your environment variables (see Environment Setup section below)
+3. Have enough MATIC for deployment (testnet MATIC for Amoy, mainnet MATIC for production)
 
-```json
-{
-  "scripts": {
-    "test-connection:mainnet": "tsx scripts/test-connection.ts",
-    "test-connection:amoy": "tsx scripts/test-connection.ts --testnet",
-    "deploy:mainnet": "tsx scripts/ethers-deploy.ts",
-    "deploy:amoy": "tsx scripts/ethers-deploy.ts --testnet",
-    "compile": "npx hardhat compile"
-  }
-}
-```
+### CoreRegistryDeployer Contract
 
-### Command Descriptions
+The `CoreRegistryDeployer` contract:
+- Deploys three core registries: BrandRegistry, ManufacturerRegistry, and ProductRegistry
+- Emits a `RegistriesDeployed` event with the addresses of all deployed registries
+- Includes safety checks to prevent redeployment and unauthorized access
+- Handles deployment failures gracefully with detailed error messages
 
-- **Compilation**
-  - `npm run compile`: Compiles all Solidity contracts using Hardhat
-    - Generates contract artifacts in `artifacts/` directory
-    - Creates TypeScript typings for contracts
+### Deployment Flow
 
-- **Connection Testing**
-  - `npm run test-connection:mainnet`: Tests connection to Ethereum mainnet
-    - Verifies RPC endpoint connectivity
-    - Checks wallet configuration
-    - Validates network status
-  
-  - `npm run test-connection:amoy`: Tests connection to Amoy testnet
-    - Same checks as mainnet but for testnet
-    - Ensures testnet RPC is accessible
-    - Verifies testnet wallet setup
+The deployment script (`ethers-deploy-all.ts`) follows these steps:
 
-- **Deployment**
-  - `npm run deploy:mainnet`: Deploys contracts to Ethereum mainnet
-    - Uses ethers v6 for deployment
-    - Requires proper environment variables
-    - Handles contract constructor arguments
-    
-  - `npm run deploy:amoy`: Deploys contracts to Amoy testnet
-    - Same functionality as mainnet deployment
-    - Uses testnet configuration
-    - Lower gas costs for testing
+1. **Compilation**: 
+   - Automatically runs `npx hardhat compile`
+   - Compiles all Solidity contracts
+   - Generates contract artifacts and TypeScript typings
+   - No need to run compilation separately
 
-### Deployment Process
+2. **Network Connection**: 
+   - Tests the connection to the specified network (testnet/mainnet)
+   - Verifies RPC endpoint connectivity
+   - Validates wallet configuration
 
-1. **Test Network Connection**
+3. **Deployment Steps**:
+   - Deploys the CoreRegistryDeployer contract
+   - Calls deployRegistries() to deploy all core registries
+   - Listens for the RegistriesDeployed event to capture registry addresses
+   - Deploys the ProductToken contract with the registry addresses
+
+4. **Verification**: 
+   - Waits for contract deployments to be confirmed
+   - Outputs deployed contract addresses
+   - Verifies contract deployment success
+
+### Commands
+
+#### Test Network Connection
 ```bash
-# For mainnet
+# Test Polygon Mainnet connection
 npm run test-connection:mainnet
 
-# For Amoy testnet
+# Test Polygon Amoy Testnet connection
 npm run test-connection:amoy
 ```
 
-2. **Compile Contracts**
+#### Deploy Using Single Command
 ```bash
-npm run compile
+# Deploy to Polygon Mainnet
+npm run deploy-all:mainnet
+
+# Deploy to Polygon Amoy Testnet
+npm run deploy-all:amoy
 ```
 
-3. **Deploy Contracts**
-```bash
-# For mainnet
-npm run deploy:mainnet BrandRegistry
-npm run deploy:mainnet ManufacturerRegistry
-npm run deploy:mainnet <brandRegistryAddress> ProductRegistry 
-npm run deploy:mainnet <productRegistryAddress> <brandRegistryAddress> <manufacturerRegistryAddress> ProductToken 
-
-# For Amoy testnet
-npm run deploy:amoy BrandRegistry
-npm run deploy:amoy ManufacturerRegistry
-npm run deploy:amoy <brandRegistryAddress> ProductRegistry 
-npm run deploy:amoy <productRegistryAddress> <brandRegistryAddress> <manufacturerRegistryAddress> ProductToken
+The deployment script will:
+1. Compile all contracts automatically (no need to run compile separately)
+2. Deploy the CoreRegistryDeployer
+3. Automatically deploy BrandRegistry, ManufacturerRegistry, and ProductRegistry
+4. Deploy the ProductToken with the correct registry addresses
+5. Output all contract addresses for future reference
 
 ### Environment Setup
 
