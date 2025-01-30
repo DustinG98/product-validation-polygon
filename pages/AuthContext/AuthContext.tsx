@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { create } from '@web3-storage/w3up-client';
 import { StoreMemory } from '@web3-storage/w3up-client/stores/memory';
@@ -10,15 +10,26 @@ interface AuthContextProps {
   loginStoracha: (email: string) => Promise<void>;
   loginMetaMask: () => Promise<void>;
   logout: () => void;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
+
+const publicPaths = ['/login']; // Add any public paths here
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [storachaClient, setStorachaClient] = useState<any | null>(null);
   const [isStorachaAuthenticated, setIsStorachaAuthenticated] = useState<boolean>(false);
   const [isMetaMaskAuthenticated, setIsMetaMaskAuthenticated] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const router = useRouter();
+
+  // Debounced navigation function
+  const navigateDebounced = useCallback((path: string) => {
+    if (router.pathname !== path) {
+      router.push(path);
+    }
+  }, [router]);
 
   useEffect(() => {
     const initializeStorachaClient = async () => {
@@ -31,6 +42,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setStorachaClient(client);
       } catch (error) {
         console.error('Failed to initialize Storacha client:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -48,7 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!emailRegex.test(emailTrimmed)) throw new Error('Please enter a valid email address');
 
     try {
-      const loginResult = await storachaClient.login(emailTrimmed);
+      await storachaClient.login(emailTrimmed);
       const spaces = await storachaClient.spaces();
       if (spaces.length === 0) throw new Error('No spaces found. Please create a space using the w3 CLI first: w3 space create product-storage');
 
@@ -65,7 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     setIsStorachaAuthenticated(false);
     setIsMetaMaskAuthenticated(false);
-    router.push('/login');
+    navigateDebounced('/login');
   };
 
   const loginMetaMask = async () => {
@@ -134,11 +147,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Auth check effect
   useEffect(() => {
-    if (!isStorachaAuthenticated || !isMetaMaskAuthenticated) {
-      router.push('/login');
-    }
-  }, [isStorachaAuthenticated, isMetaMaskAuthenticated, router]);
+    const authCheck = () => {
+      const isPublicPath = publicPaths.includes(router.pathname);
+      if (!isPublicPath && (!isStorachaAuthenticated || !isMetaMaskAuthenticated)) {
+        navigateDebounced('/login');
+      }
+    };
+
+    // Check auth on route change
+    router.events.on('routeChangeComplete', authCheck);
+    // Initial check
+    authCheck();
+
+    return () => {
+      router.events.off('routeChangeComplete', authCheck);
+    };
+  }, [router, isStorachaAuthenticated, isMetaMaskAuthenticated, navigateDebounced]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider value={{ 
@@ -147,7 +181,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isMetaMaskAuthenticated, 
       loginStoracha, 
       loginMetaMask,
-      logout
+      logout,
+      isLoading
     }}>
       {children}
     </AuthContext.Provider>

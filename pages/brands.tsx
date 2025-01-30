@@ -58,25 +58,14 @@ const BrandsPage: React.FC = () => {
               signerInstance
             );
 
+            // Verify contract instance
+            const code = await browserProvider.getCode(contractAddress);
+            if (code === '0x' || code === '0x0') {
+                throw new Error('No contract code found at the specified address');
+            }
+
             setProviderContract(providerContractInstance);
             setSignerContract(signerContractInstance);
-    
-            // Verify contract instance
-            try {
-              const code = await browserProvider.getCode(contractAddress);
-              if (code === '0x' || code === '0x0') {
-                throw new Error('No contract code found at the specified address');
-              }
-    
-              try {
-                await fetchMyBrands();
-              } catch (countError) {
-                console.error('Could not get initial brands:', countError);
-              }
-            } catch (contractError: any) {
-              console.error('Contract verification failed:', contractError);
-              throw new Error(`Contract verification failed: ${contractError.message}`);
-            }
     
           } catch (error: any) {
             console.error('Initialization error:', error);
@@ -87,6 +76,16 @@ const BrandsPage: React.FC = () => {
         init();
     }, []);
 
+    // Separate useEffect for fetching brands once signerContract is ready
+    useEffect(() => {
+        if (signerContract) {
+            fetchMyBrands().catch(error => {
+                console.error('Could not fetch brands:', error);
+                setError('Failed to fetch brands: ' + error.message);
+            });
+        }
+    }, [signerContract]);
+
     const handleInputChange = (e: any) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
@@ -96,10 +95,10 @@ const BrandsPage: React.FC = () => {
     };
     
     const fetchMyBrands = async () => {
-        // Then get the full brand details
         if(!signerContract) {
             throw new Error('Contract not initialized');
         }
+
         const result = await signerContract.getMyBrands();
 
         // Result will be an object with numeric keys if it's an array of structs
