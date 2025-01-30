@@ -12,10 +12,6 @@ interface AuthContextProps {
   logout: () => void;
 }
 
-const SESSION_KEY = 'storacha_session';
-const EXPIRY_KEY = 'storacha_expiry';
-const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -23,40 +19,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isStorachaAuthenticated, setIsStorachaAuthenticated] = useState<boolean>(false);
   const [isMetaMaskAuthenticated, setIsMetaMaskAuthenticated] = useState<boolean>(false);
   const router = useRouter();
-
-  // Check session validity
-  useEffect(() => {
-    const checkSession = () => {
-      const expiry = sessionStorage.getItem(EXPIRY_KEY);
-      const session = sessionStorage.getItem(SESSION_KEY);
-
-      if (!expiry || !session) {
-        setIsStorachaAuthenticated(false);
-        return;
-      }
-
-      const expiryTime = parseInt(expiry);
-      if (Date.now() > expiryTime) {
-        // Session expired
-        sessionStorage.removeItem(SESSION_KEY);
-        sessionStorage.removeItem(EXPIRY_KEY);
-        setIsStorachaAuthenticated(false);
-        if (router.pathname !== '/login') {
-          router.push('/login');
-        }
-      } else {
-        // Valid session
-        setIsStorachaAuthenticated(true);
-        const sessionData = JSON.parse(session);
-        setStorachaClient(sessionData.client);
-      }
-    };
-
-    checkSession();
-    // Check session every minute
-    const interval = setInterval(checkSession, 60000);
-    return () => clearInterval(interval);
-  }, [router]);
 
   useEffect(() => {
     const initializeStorachaClient = async () => {
@@ -67,7 +29,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           throw new Error('Failed to create Storacha client');
         }
         setStorachaClient(client);
-        console.log('Storacha client initialized');
       } catch (error) {
         console.error('Failed to initialize Storacha client:', error);
       }
@@ -87,23 +48,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!emailRegex.test(emailTrimmed)) throw new Error('Please enter a valid email address');
 
     try {
-      console.log('Attempting to log in to Storacha with email:', emailTrimmed);
       const loginResult = await storachaClient.login(emailTrimmed);
-      console.log('Login result:', loginResult);
       const spaces = await storachaClient.spaces();
-      console.log('Available spaces:', spaces);
       if (spaces.length === 0) throw new Error('No spaces found. Please create a space using the w3 CLI first: w3 space create product-storage');
 
       const space = spaces[0];
       await storachaClient.setCurrentSpace(space.did());
-      
-      // Save session
-      const expiryTime = Date.now() + SESSION_DURATION;
-      sessionStorage.setItem(EXPIRY_KEY, expiryTime.toString());
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify({
-        client: storachaClient,
-        email: emailTrimmed
-      }));
       
       setIsStorachaAuthenticated(true);
     } catch (error) {
@@ -113,8 +63,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
-    sessionStorage.removeItem(SESSION_KEY);
-    sessionStorage.removeItem(EXPIRY_KEY);
     setIsStorachaAuthenticated(false);
     setIsMetaMaskAuthenticated(false);
     router.push('/login');
@@ -128,8 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       // Request account access
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      console.log('Connected account:', accounts[0]);
+      await window.ethereum.request({ method: 'eth_requestAccounts' });
 
       const targetNetwork = process.env.NEXT_PUBLIC_NETWORK || 'testnet';
       const targetChainId = targetNetwork === 'mainnet' ? '0x89' : '0x13882';
@@ -145,16 +92,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const chainId = await window.ethereum.request({ method: 'eth_chainId' });
       if (chainId !== targetChainId) {
         try {
-          console.log('Attempting to switch to network:', targetChainId);
           await window.ethereum.request({
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: targetChainId }],
           });
         } catch (switchError: any) {
-          console.log('Switch failed:', switchError.code, switchError.message);
           if (switchError.code === 4902) {
             try {
-              console.log('Adding network to MetaMask...');
               await window.ethereum.request({
                 method: 'wallet_addEthereumChain',
                 params: [
@@ -171,13 +115,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   },
                 ],
               });
-              console.log('Network added successfully');
               await window.ethereum.request({
                 method: 'wallet_switchEthereumChain',
                 params: [{ chainId: targetChainId }],
               });
             } catch (addError) {
-              console.error('Failed to add network:', addError);
               throw new Error(`Please switch to ${networkName} in your wallet`);
             }
           } else {

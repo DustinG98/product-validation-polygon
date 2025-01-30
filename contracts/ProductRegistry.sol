@@ -11,26 +11,22 @@ contract ProductRegistry is BaseRegistry, IProductRegistry {
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
 
-    IBrandRegistry public brandRegistry;
+    address public immutable brandRegistry;
 
-    constructor(address _brandRegistry, address _feeCollector) BaseRegistry(_feeCollector) {
-        brandRegistry = IBrandRegistry(_brandRegistry);
+    constructor(
+        address _brandRegistry,
+        address _feeCollector
+    ) BaseRegistry(_feeCollector) {
+        require(_brandRegistry != address(0), "Brand registry cannot be zero address");
+        brandRegistry = _brandRegistry;
     }
 
     // Mapping: productId => verification record
     mapping(uint256 => VerificationRecord) public verificationRecords;
 
-    event ProductVerified(
-        uint256 indexed productId, 
-        uint256 indexed brandId, 
-        uint256 indexed manufacturerId, 
-        uint256 batchId
-    );
-    event VerificationRevoked(uint256 indexed productId);
-
-    function addProduct(string memory ipfsHash, uint256 brandId) external payable override returns (uint256) {
+    function addProduct(string memory ipfsHash, uint256 brandId) external payable returns (uint256) {
         // Verify caller is brand owner
-        require(brandRegistry.getBrand(brandId).owner == msg.sender, "Not brand owner");
+        require(IBrandRegistry(brandRegistry).getBrand(brandId).owner == msg.sender, "Not brand owner");
         
         uint256 productId = addEntity(ipfsHash);
         
@@ -144,8 +140,7 @@ contract ProductRegistry is BaseRegistry, IProductRegistry {
 
     function getVerificationDetails(uint256 productId) 
         external 
-        view 
-        override
+        view
         validEntityId(productId) 
         returns (
             uint256 brandId,
@@ -163,5 +158,9 @@ contract ProductRegistry is BaseRegistry, IProductRegistry {
             record.timestamp,
             record.isValid
         );
+    }
+
+    function getContractType() internal pure override returns (bytes32) {
+        return keccak256(abi.encodePacked("ProductRegistry"));
     }
 }

@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-interface IBrandRegistry {
+import "./IBaseRegistry.sol";
+
+interface IBrandRegistry is IBaseRegistry {
     struct Brand {
         address owner;
         string ipfsHash;

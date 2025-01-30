@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-interface IProductRegistry {
+import "./IBaseRegistry.sol";
+
+interface IProductRegistry is IBaseRegistry {
     struct Product {
         address owner;
         string ipfsHash;      // Contains JSON with {name, description, specifications, etc}
@@ -21,6 +23,7 @@ interface IProductRegistry {
     function getProduct(uint256 productId) external view returns (Product memory);
     function addProduct(string memory ipfsHash, uint256 brandId) external payable returns (uint256);
     function transferProduct(uint256 productId, address newOwner) external payable;
+    function getMyProducts() external view returns (Product[] memory);
     function verifyProduct(
         uint256 productId,
         uint256 brandId,
@@ -34,6 +37,7 @@ interface IProductRegistry {
         uint256 batchId
     ) external;
     function revokeVerification(uint256 productId) external;
+    function verifyProductSignature(uint256 productId, bytes32 messageHash) external view returns (bool);
     function getVerificationRecord(uint256 productId) external view returns (VerificationRecord memory);
     function getVerificationDetails(uint256 productId) external view returns (
         uint256 brandId,
@@ -42,6 +46,12 @@ interface IProductRegistry {
         uint256 timestamp,
         bool isValid
     );
-    function verifyProductSignature(uint256 productId, bytes32 messageHash) external view returns (bool);
-    function getMyProducts() external view returns (Product[] memory);
+
+    event ProductVerified(
+        uint256 indexed productId, 
+        uint256 indexed brandId, 
+        uint256 indexed manufacturerId, 
+        uint256 batchId
+    );
+    event VerificationRevoked(uint256 indexed productId);
 }

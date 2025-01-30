@@ -33,4 +33,8 @@ contract ManufacturerRegistry is BaseRegistry, IManufacturerRegistry {
     function transferManufacturer(uint256 manufacturerId, address newOwner) external payable override onlyEntityOwner(manufacturerId) {
         transferEntity(manufacturerId, newOwner);
     }
+
+    function getContractType() internal pure override returns (bytes32) {
+        return keccak256(abi.encodePacked("ManufacturerRegistry"));
+    }
 }

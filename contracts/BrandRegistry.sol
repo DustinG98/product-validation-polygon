@@ -12,7 +12,6 @@ contract BrandRegistry is BaseRegistry, IBrandRegistry {
 
     constructor(address _feeCollector) BaseRegistry(_feeCollector) {}
 
-
     function addBrand(string memory ipfsHash) external payable override returns (uint256) {
         return addEntity(ipfsHash);
     }
@@ -34,5 +33,9 @@ contract BrandRegistry is BaseRegistry, IBrandRegistry {
 
     function transferBrand(uint256 brandId, address newOwner) external payable override onlyEntityOwner(brandId) {
         transferEntity(brandId, newOwner);
+    }
+
+    function getContractType() internal pure override returns (bytes32) {
+        return keccak256(abi.encodePacked("BrandRegistry"));
     }
 }

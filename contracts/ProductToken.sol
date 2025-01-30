@@ -28,9 +28,32 @@ contract ProductToken is ERC1155 {
         address _manufacturerRegistry,
         address _feeCollector
     ) ERC1155("") {
+        require(_productRegistry != address(0) && _brandRegistry != address(0) && _manufacturerRegistry != address(0), "Invalid registry addresses");
+        
+        // Verify ProductRegistry
         productRegistry = IProductRegistry(_productRegistry);
+        try productRegistry.getEntityCount() returns (uint256) {
+            // Valid product registry
+        } catch {
+            revert("Invalid product registry implementation");
+        }
+        
+        // Verify BrandRegistry
         brandRegistry = IBrandRegistry(_brandRegistry);
+        try brandRegistry.getEntityCount() returns (uint256) {
+            // Valid brand registry
+        } catch {
+            revert("Invalid brand registry implementation");
+        }
+        
+        // Verify ManufacturerRegistry
         manufacturerRegistry = IManufacturerRegistry(_manufacturerRegistry);
+        try manufacturerRegistry.getEntityCount() returns (uint256) {
+            // Valid manufacturer registry
+        } catch {
+            revert("Invalid manufacturer registry implementation");
+        }
+        
         feeCollector = _feeCollector;
     }
 

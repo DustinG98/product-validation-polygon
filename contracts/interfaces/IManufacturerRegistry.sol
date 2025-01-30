@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-interface IManufacturerRegistry {
+import "./IBaseRegistry.sol";
+
+interface IManufacturerRegistry is IBaseRegistry {
     struct ManufacturerStruct {
         address owner;
         string ipfsHash;

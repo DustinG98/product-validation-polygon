@@ -3,16 +3,12 @@ pragma solidity ^0.8.26;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import "./interfaces/IBaseRegistry.sol";
 
-abstract contract BaseRegistry {
+
+contract BaseRegistry is IBaseRegistry {
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
-
-    struct BaseEntity {
-        address owner;
-        string ipfsHash;
-        uint256 timestamp;
-    }
 
     // Base storage for entities
     mapping(uint256 => BaseEntity) internal _entities;
@@ -22,13 +18,7 @@ abstract contract BaseRegistry {
     uint256 public baseRegistrationFee = 0.001 ether;  // Minimum registration fee (0.001 ETH)
     uint256 public perByteRegistrationFee = 0.0001 ether;  // Additional fee per byte (0.0001 ETH)
     uint256 public transferFee = 0.0005 ether;     // Fixed transfer fee
-    address public feeCollector;
-
-    // Events
-    event EntityAdded(uint256 indexed entityId, address indexed owner, string ipfsHash);
-    event EntityTransferred(uint256 indexed entityId, address indexed oldOwner, address indexed newOwner);
-    event FeeUpdated(string feeType, uint256 newAmount);
-    event FeeCollected(address from, uint256 amount, string feeType);
+    address public immutable feeCollector;
 
     // Modifiers
     modifier onlyEntityOwner(uint256 entityId) {
@@ -44,7 +34,15 @@ abstract contract BaseRegistry {
 
     // Constructor
     constructor(address _feeCollector) {
+        require(_feeCollector != address(0), "Fee collector cannot be zero address");
         feeCollector = _feeCollector;
+        // Prevent direct deployment of base contract
+        require(getContractType() != keccak256(abi.encodePacked("BaseRegistry")), "BaseRegistry cannot be deployed directly");
+    }
+
+    // Helper function to get contract type
+    function getContractType() internal pure virtual returns (bytes32) {
+        return keccak256(abi.encodePacked("BaseRegistry"));
     }
 
     // Internal functions
@@ -172,10 +170,5 @@ abstract contract BaseRegistry {
         require(msg.sender == feeCollector, "Only fee collector can update fees");
         transferFee = _fee;
         emit FeeUpdated("transfer", _fee);
-    }
-
-    function setFeeCollector(address _newCollector) external {
-        require(msg.sender == feeCollector, "Only current fee collector can update");
-        feeCollector = _newCollector;
     }
 }

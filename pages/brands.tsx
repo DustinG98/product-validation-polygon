@@ -46,8 +46,6 @@ const BrandsPage: React.FC = () => {
             const contractAddress = process.env.NEXT_PUBLIC_BRAND_REGISTRY_ADDRESS ?? '';
             setContractAddress(contractAddress);
 
-            console.log('Contract address:', contractAddress);
-            
             const providerContractInstance = new ethers.Contract(
               contractAddress,
               BrandRegistryArtifact.abi,
@@ -59,6 +57,9 @@ const BrandsPage: React.FC = () => {
               BrandRegistryArtifact.abi,
               signerInstance
             );
+
+            setProviderContract(providerContractInstance);
+            setSignerContract(signerContractInstance);
     
             // Verify contract instance
             try {
@@ -66,48 +67,9 @@ const BrandsPage: React.FC = () => {
               if (code === '0x' || code === '0x0') {
                 throw new Error('No contract code found at the specified address');
               }
-              console.log('Contract code verified at address:', contractAddress);
     
-              // Test contract methods
               try {
-                console.log('Fetching brands for account:', accounts[0]);
-                
-                // Then get the full brand details
-                const result = await signerContractInstance.getMyBrands();
-                console.log('Raw brands result:', result);
-
-                // Result will be an object with numeric keys if it's an array of structs
-                const brandsFiltered = Object.values(result).filter((item: any) => 
-                    typeof item === 'object' && item.ipfsHash && item.owner && item.timestamp
-                );
-
-                const brandsWithMetadata = await Promise.all(
-                    brandsFiltered.map(async (brand: any) => {
-                        try {
-                        console.log('Processing brand:', brand);
-                        // Access the struct fields directly
-                        const ipfsHash = brand.ipfsHash;
-                        const owner = brand.owner;
-                        const timestamp = brand.timestamp;
-                        
-                        // Use Storacha gateway to fetch metadata
-                        const response = await fetch(`https://${ipfsHash}.ipfs.w3s.link`);
-                        const metadata = await response.json();
-                        return {
-                            ipfsHash,
-                            owner,
-                            timestamp: timestamp.toString(),
-                            metadata
-                        };
-                        } catch (error) {
-                            console.error('Error processing brand:', error);
-                            return brand;
-                        }
-                    })
-                );
-                
-                console.log('Processed brands:', brandsWithMetadata);
-                setBrands(brandsWithMetadata);
+                await fetchMyBrands();
               } catch (countError) {
                 console.error('Could not get initial brands:', countError);
               }
@@ -116,13 +78,6 @@ const BrandsPage: React.FC = () => {
               throw new Error(`Contract verification failed: ${contractError.message}`);
             }
     
-            setProviderContract(providerContractInstance);
-            setSignerContract(signerContractInstance);
-    
-            
-            // if (accounts[0]) {
-            //   await loadMyProducts(signerContractInstance, accounts[0]);
-            // }
           } catch (error: any) {
             console.error('Initialization error:', error);
             setError('Failed to initialize: ' + error.message);
@@ -139,6 +94,45 @@ const BrandsPage: React.FC = () => {
     const handleFileChange = (e: any) => {
         setFormData({ ...formData, image: e.target.files[0] });
     };
+    
+    const fetchMyBrands = async () => {
+        // Then get the full brand details
+        if(!signerContract) {
+            throw new Error('Contract not initialized');
+        }
+        const result = await signerContract.getMyBrands();
+
+        // Result will be an object with numeric keys if it's an array of structs
+        const brandsFiltered = Object.values(result).filter((item: any) => 
+            typeof item === 'object' && item.ipfsHash && item.owner && item.timestamp
+        );
+
+        const brandsWithMetadata = await Promise.all(
+            brandsFiltered.map(async (brand: any) => {
+                try {
+                // Access the struct fields directly
+                const ipfsHash = brand.ipfsHash;
+                const owner = brand.owner;
+                const timestamp = brand.timestamp;
+                
+                // Use Storacha gateway to fetch metadata
+                const response = await fetch(`https://${ipfsHash}.ipfs.w3s.link`);
+                const metadata = await response.json();
+                return {
+                    ipfsHash,
+                    owner,
+                    timestamp: timestamp.toString(),
+                    metadata
+                };
+                } catch (error) {
+                    console.error('Error processing brand:', error);
+                    return brand;
+                }
+            })
+        );
+        
+        setBrands(brandsWithMetadata);
+    }
 
     const uploadToIPFS = async (data: any): Promise<string> => {
         if (!storachaClient) {
@@ -151,12 +145,10 @@ const BrandsPage: React.FC = () => {
 
         try {
         let imageUrl = '';
-        
         // If there's an image, upload it first
         if (data.image instanceof File) {
             const imageCid = await storachaClient.uploadFile(data.image);
             imageUrl = `https://${imageCid}.ipfs.w3s.link`;
-            console.log('Image uploaded to Storacha, URL:', imageUrl);
         }
 
         // Create metadata without the File object
@@ -171,12 +163,11 @@ const BrandsPage: React.FC = () => {
 
         const cid = await storachaClient.uploadFile(file);
         const cidString = cid.toString();
-        console.log('Metadata uploaded to Storacha, CID:', cidString);
 
         return cidString;
         } catch (error) {
-        console.error('Error uploading to Storacha:', error);
-        throw error;
+            console.error('Error uploading to Storacha:', error);
+            throw error;
         }
     };
 
@@ -185,105 +176,88 @@ const BrandsPage: React.FC = () => {
         setLoading(true);
         setError('');
         try {
-        if (!isStorachaAuthenticated) {
-            throw new Error('Please login to Storacha first');
-        }
-
-        if (!signerContract) {
-            throw new Error('Contract not properly initialized');
-        }
-
-        if (!account) {
-            throw new Error('No account connected');
-        }
-
-        // Verify contract methods
-        try {
-            console.log('Verifying contract methods...');
-            const methods = Object.keys(providerContract);
-            console.log('Available contract methods:', methods);
-            
-            if (!signerContract.addBrand) {
-            throw new Error('Required contract method addBrand not found');
+            if (!isStorachaAuthenticated) {
+                throw new Error('Please login to Storacha first');
             }
-        } catch (methodError: any) {
-            console.error('Contract method verification failed:', methodError);
-            throw new Error(`Contract not properly initialized: ${methodError.message}`);
-        }
 
-        // Prepare metadata for IPFS
-        const metadata = {
-            name: formData.name,
-            description: formData.description,
-            image: formData.image, // Pass the File object to uploadToIPFS
-            timestamp: new Date().toISOString()
-        };
-
-        console.log('Uploading to IPFS:', metadata);
-        const ipfsHash = await uploadToIPFS(metadata);
-        console.log('IPFS hash:', ipfsHash);
-
-        // Send the transaction
-        try {
-            console.log('Preparing transaction with:', {
-            method: 'addBrand',
-            ipfsHash,
-            from: account,
-            contractAddress: providerContract.target
-            });
-
-            // Calculate the required fee based on BaseRegistry contract
-            const baseRegistrationFee = BigInt("1000000000000000"); // 0.001 ETH base fee
-            const perByteRegistrationFee = BigInt("100000000000000"); // 0.0001 ETH per byte
-            const ipfsBytes = new TextEncoder().encode(ipfsHash).length;
-            const totalFee = baseRegistrationFee + (perByteRegistrationFee * BigInt(ipfsBytes));
-
-            // Get the gas estimate first
-            const gasEstimate = await signerContract.addBrand.estimateGas(ipfsHash, {
-                value: totalFee
-            });
-            console.log('Gas estimate:', formatUnits(gasEstimate, 'wei'));
-
-            // Add 20% buffer to gas estimate
-            const gasLimit = Math.floor(Number(gasEstimate) * 1.2);
-            
-            console.log('Sending transaction with gas limit:', gasLimit);
-
-
-            
-            console.log('Total fee required:', formatUnits(totalFee, 18), 'ETH');
-            
-            const tx = await signerContract.addBrand(ipfsHash, {
-                value: totalFee // Include the required fee
-            });
-    
-            await signerContract.waitForDeployment();
-            
-            console.log('Transaction sent:', tx.hash);
-            console.log('Waiting for confirmation...');
-            
-            // Clear form and reload products
-            setFormData({ name: '', description: '', image: null });
-
-            alert('Brand added successfully!');
-        } catch (txError: any) {
-            console.error('Transaction error:', txError);
-            
-            // Enhanced error handling
-            let errorMessage = 'Transaction failed';
-            
-            if (txError.code === 'ACTION_REJECTED') {
-            errorMessage = 'Transaction was rejected by user';
-            } else if (txError.code === 'UNPREDICTABLE_GAS_LIMIT') {
-            errorMessage = 'Unable to estimate gas. The transaction may fail or the contract may be incorrect.';
-            } else if (txError.error?.message) {
-            errorMessage = txError.error.message;
-            } else if (txError.message) {
-            errorMessage = txError.message;
+            if (!signerContract) {
+                throw new Error('Contract not properly initialized');
             }
-            
-            throw new Error(`Failed to add product: ${errorMessage}`);
-        }
+
+            if (!account) {
+                throw new Error('No account connected');
+            }
+
+            // Verify contract methods
+            try {
+                const methods = Object.keys(providerContract);
+                
+                if (!signerContract.addBrand) {
+                throw new Error('Required contract method addBrand not found');
+                }
+            } catch (methodError: any) {
+                console.error('Contract method verification failed:', methodError);
+                throw new Error(`Contract not properly initialized: ${methodError.message}`);
+            }
+
+            // Prepare metadata for IPFS
+            const metadata = {
+                name: formData.name,
+                description: formData.description,
+                image: formData.image, // Pass the File object to uploadToIPFS
+                timestamp: new Date().toISOString()
+            };
+
+            const ipfsHash = await uploadToIPFS(metadata);
+
+            // Send the transaction
+            try {
+                // Calculate the required fee based on BaseRegistry contract
+                const baseRegistrationFee = BigInt("1000000000000000"); // 0.001 ETH base fee
+                const perByteRegistrationFee = BigInt("100000000000000"); // 0.0001 ETH per byte
+                const ipfsBytes = new TextEncoder().encode(ipfsHash).length;
+                const totalFee = baseRegistrationFee + (perByteRegistrationFee * BigInt(ipfsBytes));
+
+                // Get the gas estimate first
+                const gasEstimate = await signerContract.addBrand.estimateGas(ipfsHash, {
+                    value: totalFee
+                });
+                // Add 20% buffer to gas estimate
+                const gasLimit = Math.floor(Number(gasEstimate) * 1.2);
+                
+                const tx = await signerContract.addBrand(ipfsHash, {
+                    value: totalFee, // Include the required fee
+                    gasLimit
+                });
+
+                await tx.wait();
+                
+                // Clear form and reload products
+                setFormData({ name: '', description: '', image: null });
+
+                // close the modal
+                setShowModal(false);
+                await fetchMyBrands();
+
+                alert('Brand added successfully!');
+            } catch (txError: any) {
+                console.error('Transaction error:', txError);
+                
+                // Enhanced error handling
+                let errorMessage = 'Transaction failed';
+                
+                if (txError.code === 'ACTION_REJECTED') {
+                    errorMessage = 'Transaction was rejected by user';
+                } else if (txError.code === 'UNPREDICTABLE_GAS_LIMIT') {
+                    errorMessage = 'Unable to estimate gas. The transaction may fail or the contract may be incorrect.';
+                } else if (txError.error?.message) {
+                    errorMessage = txError.error.message;
+                } else if (txError.message) {
+                    errorMessage = txError.message;
+                }
+                
+                throw new Error(`Failed to add product: ${errorMessage}`);
+            }
         } catch (error: any) {
         console.error('Add product error:', error);
         setError('Failed to add product: ' + (error.message || error.toString()));
