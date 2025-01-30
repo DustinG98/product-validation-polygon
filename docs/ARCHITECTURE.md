@@ -12,19 +12,28 @@ This document outlines the architecture for a decentralized brand and product ve
 - Product management capabilities
 - Administrator management
 
-### 2. Product Registry (ProductRegistry.sol)
+### 2. Manufacturer Registry (ManufacturerRegistry.sol)
+- Manufacturer registration
+- Manufacturer credentials and metadata
+- Manufacturer verification system
+- Product creation and management
+
+### 3. Product Registry (ProductRegistry.sol)
 - Product creation and management
 - Version history tracking
 - Batch operations
 - Product categorization
 - Status management
 
-### 3. Product Token (ProductToken.sol)
+### 4. Product Token (ProductToken.sol)
 - ERC1155 implementation
 - Serial number generation
 - Warranty information
 - Transfer restrictions
 - Token lifecycle management
+- Batch production
+- Product verification
+- Product ownership transfer
 
 ## Gas Optimization Strategies
 
@@ -95,7 +104,7 @@ function getProductInfo(uint256 productId) external view returns (
 
 ## Access Control Implementation
 
-### 1. Role-Based Access Control (RBAC)
+### 1. Role-Based Access Control (RBAC) - phase 1
 ```solidity
 contract BrandRegistry is AccessControlEnumerable {
     bytes32 public constant BRAND_ADMIN = keccak256("BRAND_ADMIN");
@@ -117,40 +126,9 @@ contract BrandRegistry is AccessControlEnumerable {
 }
 ```
 
-### 2. Multi-Signature Implementation
-```solidity
-contract BrandMultiSig {
-    struct Transaction {
-        address to;
-        uint256 value;
-        bytes data;
-        bool executed;
-        uint256 numConfirmations;
-    }
+### 2. Multi-Signature Implementation - phase 1 (implemented within flow instead, brand can approve transactions)
 
-    mapping(uint256 => mapping(address => bool)) public isConfirmed;
-    address[] public owners;
-    uint256 public required;
-
-    function submitTransaction(
-        address _to,
-        uint256 _value,
-        bytes memory _data
-    ) public {
-        // Implementation
-    }
-
-    function confirmTransaction(uint256 _txIndex) public {
-        // Implementation
-    }
-
-    function executeTransaction(uint256 _txIndex) public {
-        // Implementation
-    }
-}
-```
-
-### 3. Time-Locked Operations
+### 3. Time-Locked Operations - phase 2
 ```solidity
 contract TimeLock {
     uint256 public constant MINIMUM_DELAY = 2 days;
@@ -182,7 +160,7 @@ contract TimeLock {
 
 ## Anti-Counterfeit Measures
 
-### 1. Unique Product Identification
+### 1. Unique Product Identification and QR Code Generation (ProductIdentification.sol) - phase 1
 ```solidity
 contract ProductIdentification {
     function generateUniqueId(
@@ -199,12 +177,6 @@ contract ProductIdentification {
             )
         );
     }
-}
-```
-
-### 2. QR Code Generation
-```solidity
-contract QRCodeGenerator {
     function generateQRData(
         bytes32 productId,
         uint256 timestamp,
@@ -218,10 +190,9 @@ contract QRCodeGenerator {
     }
 }
 ```
-
-### 3. Verification System
+### 2. Verification System (ProductToken.sol) - phase 1
 ```solidity
-contract ProductVerification {
+contract ProductToken is ERC1155 {
     mapping(bytes32 => bool) public verifiedProducts;
     mapping(bytes32 => uint256) public verificationCount;
 
@@ -253,7 +224,7 @@ contract ProductVerification {
 }
 ```
 
-### 4. NFC/RFID Integration
+### 3. NFC/RFID Integration (PhysicalVerification.sol) - phase 2
 ```solidity
 contract PhysicalVerification {
     struct PhysicalTag {
@@ -307,7 +278,6 @@ contract PhysicalVerification {
 ## Future Considerations
 
 1. **Scalability**
-   - Layer 2 solutions integration
    - Cross-chain compatibility
    - Sharding support
 
