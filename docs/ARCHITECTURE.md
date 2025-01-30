@@ -24,6 +24,7 @@ This document outlines the architecture for a decentralized brand and product ve
 - Batch operations
 - Product categorization
 - Status management
+- Product verification
 
 ### 4. Product Token (ProductToken.sol)
 - ERC1155 implementation
@@ -32,7 +33,6 @@ This document outlines the architecture for a decentralized brand and product ve
 - Transfer restrictions
 - Token lifecycle management
 - Batch production
-- Product verification
 - Product ownership transfer
 
 ## Gas Optimization Strategies
@@ -190,9 +190,10 @@ contract ProductIdentification {
     }
 }
 ```
-### 2. Verification System (ProductToken.sol) - phase 1
+
+### 2. Verification System (ProductRegistry.sol) - phase 1
 ```solidity
-contract ProductToken is ERC1155 {
+contract ProductRegistry is ERC1155 {
     mapping(bytes32 => bool) public verifiedProducts;
     mapping(bytes32 => uint256) public verificationCount;
 
