@@ -36,29 +36,40 @@ const Login: React.FC = () => {
   };
 
   useEffect(() => {
+    // Always try to connect MetaMask first
+    handleMetaMaskLogin();
+  }, []);
+
+  useEffect(() => {
     if (isStorachaAuthenticated && isMetaMaskAuthenticated) {
-      router.push('/dashboard');
+      router.push('/brands');
     }
   }, [isStorachaAuthenticated, isMetaMaskAuthenticated, router]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[#00C5FB]">
+    <div className="flex items-center justify-center min-h-screen">
       <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
         <h1 className="text-3xl font-bold mb-8 text-center">Login</h1>
-        <StorachaLogin
-          storachaEmail={storachaEmail}
-          setStorachaEmail={setStorachaEmail}
-          handleStorachaLogin={handleStorachaLogin}
-          loading={loading}
-        />
-        {storachaSuccess && <p className="text-green-500 mt-2 text-center">Storacha login successful!</p>}
+        {!isStorachaAuthenticated ? (
+          <>
+            <StorachaLogin
+              storachaEmail={storachaEmail}
+              setStorachaEmail={setStorachaEmail}
+              handleStorachaLogin={handleStorachaLogin}
+              loading={loading}
+            />
+            {storachaSuccess && <p className="text-green-500 mt-2 text-center">Storacha login successful!</p>}
+          </>
+        ) : (
+          <p className="text-green-500 mb-4 text-center"> Storacha Connected</p>
+        )}
         <button
           onClick={handleMetaMaskLogin}
           className="flex items-center justify-center bg-white border border-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-100 mt-4 w-full"
           disabled={metaMaskSuccess}
         >
           <Image src="/metamask_icon.svg" alt="MetaMask" width={24} height={24} className="mr-2" />
-          {metaMaskSuccess ? 'Connected' : 'Login with MetaMask'}
+          {metaMaskSuccess ? ' Connected' : 'Login with MetaMask'}
         </button>
         {error && <p className="text-red-500 mt-4 text-center">{error}</p>}
       </div>

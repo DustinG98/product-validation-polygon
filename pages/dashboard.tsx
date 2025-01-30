@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext/AuthContext';
 import { ethers, formatUnits } from 'ethers';
-import contractArtifact from '../artifacts/ProductVerification.json';
+import contractArtifact from '../artifacts/contracts/ProductVerification.sol/ProductVerification.json';
 import MyProducts from '../components/MyProducts';
 import AddProductForm from '../components/AddProductForm';
 import ViewProductDetails from '../components/ViewProductDetails';

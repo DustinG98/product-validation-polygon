@@ -11,4 +11,5 @@ interface IManufacturerRegistry {
     function getManufacturer(uint256 manufacturerId) external view returns (ManufacturerStruct memory);
     function addManufacturer(string memory ipfsHash) external payable returns (uint256);
     function transferManufacturer(uint256 manufacturerId, address newOwner) external payable;
+    function getMyManufacturers() external view returns (ManufacturerStruct[] memory);
 }

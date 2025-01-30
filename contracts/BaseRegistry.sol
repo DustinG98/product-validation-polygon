@@ -19,8 +19,9 @@ abstract contract BaseRegistry {
     uint256 internal _entityCount;
 
     // Fee configuration
-    uint256 public registrationFee;
-    uint256 public transferFee;
+    uint256 public baseRegistrationFee = 0.001 ether;  // Minimum registration fee (0.001 ETH)
+    uint256 public perByteRegistrationFee = 0.0001 ether;  // Additional fee per byte (0.0001 ETH)
+    uint256 public transferFee = 0.0005 ether;     // Fixed transfer fee
     address public feeCollector;
 
     // Events
@@ -36,15 +37,14 @@ abstract contract BaseRegistry {
     }
 
     modifier validEntityId(uint256 entityId) {
-        require(entityId > 0 && entityId <= _entityCount, "Invalid entity ID");
+        require(entityId > 0, "Entity ID must be greater than 0");
+        require(entityId <= _entityCount, "Entity ID exceeds total count");
         _;
     }
 
     // Constructor
     constructor(address _feeCollector) {
         feeCollector = _feeCollector;
-        registrationFee = 0.001 ether;  // Default 0.001 ETH (around $2-3)
-        transferFee = 0.0005 ether;     // Default 0.0005 ETH (around $1-1.5)
     }
 
     // Internal functions
@@ -79,26 +79,54 @@ abstract contract BaseRegistry {
         emit EntityTransferred(entityId, oldOwner, newOwner);
     }
 
-    function _collectFee(uint256 fee) internal {
-        require(msg.value >= fee, "Insufficient fee");
-        (bool sent, ) = feeCollector.call{value: fee}("");
-        require(sent, "Failed to send fee");
-        emit FeeCollected(msg.sender, fee, "registration");
+    function calculateRegistrationFee(string memory ipfsHash) public view returns (uint256) {
+        uint256 dataSize = bytes(ipfsHash).length;
+        uint256 sizeFee = dataSize * perByteRegistrationFee;
+        return baseRegistrationFee + sizeFee;
+    }
+
+    function _collectFee(uint256 fee, string memory feeType) internal {
+        require(msg.value >= fee, string(abi.encodePacked("Insufficient fee. Required: ", uint2str(fee))));
+        payable(feeCollector).transfer(fee);
+        emit FeeCollected(msg.sender, fee, feeType);
+    }
+
+    // Helper function to convert uint to string
+    function uint2str(uint256 _i) internal pure returns (string memory str) {
+        if (_i == 0) {
+            return "0";
+        }
+        uint256 j = _i;
+        uint256 length;
+        while (j != 0) {
+            length++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(length);
+        uint256 k = length;
+        j = _i;
+        while (j != 0) {
+            bstr[--k] = bytes1(uint8(48 + j % 10));
+            j /= 10;
+        }
+        str = string(bstr);
     }
 
     // Public payable functions
     function addEntity(string memory ipfsHash) public virtual payable returns (uint256) {
-        _collectFee(registrationFee);
+        uint256 fee = calculateRegistrationFee(ipfsHash);
+        _collectFee(fee, "registration");
         return _addEntity(ipfsHash);
     }
 
     function transferEntity(uint256 entityId, address newOwner) public virtual payable {
-        _collectFee(transferFee);
+        _collectFee(transferFee, "transfer");
         _transferEntity(entityId, newOwner);
     }
 
     // Public view functions
     function getEntity(uint256 entityId) public view validEntityId(entityId) returns (BaseEntity memory) {
+        require(_entities[entityId].owner != address(0), "Entity does not exist");
         return _entities[entityId];
     }
 
@@ -106,11 +134,38 @@ abstract contract BaseRegistry {
         return _entityCount;
     }
 
+    function getEntitiesByOwner(address owner) public view returns (uint256[] memory) {
+        uint256[] memory entityIds = new uint256[](_entityCount);
+        uint256 index = 0;
+        for (uint256 i = 1; i <= _entityCount; i++) {
+            if (_entities[i].owner != address(0) && _entities[i].owner == owner) {
+                entityIds[index++] = i;
+            }
+        }
+        
+        // Create a new array with the exact size needed
+        uint256[] memory result = new uint256[](index);
+        for (uint256 i = 0; i < index; i++) {
+            result[i] = entityIds[i];
+        }
+        return result;
+    }
+
+    function getMyEntities() public view returns (uint256[] memory) {
+        return getEntitiesByOwner(msg.sender);
+    }
+
     // Fee management functions
-    function setRegistrationFee(uint256 _fee) external {
+    function setBaseRegistrationFee(uint256 _fee) external {
         require(msg.sender == feeCollector, "Only fee collector can update fees");
-        registrationFee = _fee;
-        emit FeeUpdated("registration", _fee);
+        baseRegistrationFee = _fee;
+        emit FeeUpdated("baseRegistration", _fee);
+    }
+
+    function setPerByteRegistrationFee(uint256 _fee) external {
+        require(msg.sender == feeCollector, "Only fee collector can update fees");
+        perByteRegistrationFee = _fee;
+        emit FeeUpdated("perByteRegistration", _fee);
     }
 
     function setTransferFee(uint256 _fee) external {

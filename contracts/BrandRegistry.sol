@@ -12,14 +12,25 @@ contract BrandRegistry is BaseRegistry, IBrandRegistry {
 
     constructor(address _feeCollector) BaseRegistry(_feeCollector) {}
 
+
     function addBrand(string memory ipfsHash) external payable override returns (uint256) {
         return addEntity(ipfsHash);
     }
 
-    function getBrand(uint256 brandId) external view override validEntityId(brandId) returns (Brand memory) {
+    function getBrand(uint256 brandId) public view override validEntityId(brandId) returns (Brand memory) {
         BaseEntity memory entity = getEntity(brandId);
         return Brand(entity.owner, entity.ipfsHash, entity.timestamp);
     }
+
+    function getMyBrands() external view returns (Brand[] memory) {
+        uint256[] memory brandIds = getMyEntities();
+        Brand[] memory brands = new Brand[](brandIds.length);
+        for (uint256 i = 0; i < brandIds.length; i++) {
+            brands[i] = getBrand(brandIds[i]);
+        }
+        return brands;
+    }
+
 
     function transferBrand(uint256 brandId, address newOwner) external payable override onlyEntityOwner(brandId) {
         transferEntity(brandId, newOwner);

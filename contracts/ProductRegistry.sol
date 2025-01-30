@@ -49,10 +49,18 @@ contract ProductRegistry is BaseRegistry, IProductRegistry {
         return productId;
     }
 
-    function getProduct(uint256 productId) external view override validEntityId(productId) returns (Product memory) {
+    function getProduct(uint256 productId) public view override validEntityId(productId) returns (Product memory) {
         BaseEntity memory entity = getEntity(productId);
-        bool isVerified = verificationRecords[productId].isValid;
-        return Product(entity.owner, entity.ipfsHash, entity.timestamp, isVerified);
+        return Product(entity.owner, entity.ipfsHash, entity.timestamp, verificationRecords[productId].isValid);
+    }
+
+    function getMyProducts() external view returns (Product[] memory) {
+        uint256[] memory productIds = getMyEntities();
+        Product[] memory products = new Product[](productIds.length);
+        for (uint256 i = 0; i < productIds.length; i++) {
+            products[i] = getProduct(productIds[i]);
+        }
+        return products;
     }
 
     function transferProduct(uint256 productId, address newOwner) external payable override onlyEntityOwner(productId) {

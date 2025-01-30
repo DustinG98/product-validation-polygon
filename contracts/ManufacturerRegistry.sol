@@ -16,9 +16,18 @@ contract ManufacturerRegistry is BaseRegistry, IManufacturerRegistry {
         return addEntity(ipfsHash);
     }
 
-    function getManufacturer(uint256 manufacturerId) external view override validEntityId(manufacturerId) returns (ManufacturerStruct memory) {
+    function getManufacturer(uint256 manufacturerId) public view override validEntityId(manufacturerId) returns (ManufacturerStruct memory) {
         BaseEntity memory entity = getEntity(manufacturerId);
         return ManufacturerStruct(entity.owner, entity.ipfsHash, entity.timestamp);
+    }
+
+    function getMyManufacturers() external view returns (ManufacturerStruct[] memory) {
+        uint256[] memory manufacturerIds = getMyEntities();
+        ManufacturerStruct[] memory manufacturers = new ManufacturerStruct[](manufacturerIds.length);
+        for (uint256 i = 0; i < manufacturerIds.length; i++) {
+            manufacturers[i] = getManufacturer(manufacturerIds[i]);
+        }
+        return manufacturers;
     }
 
     function transferManufacturer(uint256 manufacturerId, address newOwner) external payable override onlyEntityOwner(manufacturerId) {

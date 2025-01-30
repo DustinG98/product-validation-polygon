@@ -9,7 +9,12 @@ interface AuthContextProps {
   isMetaMaskAuthenticated: boolean;
   loginStoracha: (email: string) => Promise<void>;
   loginMetaMask: () => Promise<void>;
+  logout: () => void;
 }
+
+const SESSION_KEY = 'storacha_session';
+const EXPIRY_KEY = 'storacha_expiry';
+const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
@@ -18,6 +23,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isStorachaAuthenticated, setIsStorachaAuthenticated] = useState<boolean>(false);
   const [isMetaMaskAuthenticated, setIsMetaMaskAuthenticated] = useState<boolean>(false);
   const router = useRouter();
+
+  // Check session validity
+  useEffect(() => {
+    const checkSession = () => {
+      const expiry = sessionStorage.getItem(EXPIRY_KEY);
+      const session = sessionStorage.getItem(SESSION_KEY);
+
+      if (!expiry || !session) {
+        setIsStorachaAuthenticated(false);
+        return;
+      }
+
+      const expiryTime = parseInt(expiry);
+      if (Date.now() > expiryTime) {
+        // Session expired
+        sessionStorage.removeItem(SESSION_KEY);
+        sessionStorage.removeItem(EXPIRY_KEY);
+        setIsStorachaAuthenticated(false);
+        if (router.pathname !== '/login') {
+          router.push('/login');
+        }
+      } else {
+        // Valid session
+        setIsStorachaAuthenticated(true);
+        const sessionData = JSON.parse(session);
+        setStorachaClient(sessionData.client);
+      }
+    };
+
+    checkSession();
+    // Check session every minute
+    const interval = setInterval(checkSession, 60000);
+    return () => clearInterval(interval);
+  }, [router]);
 
   useEffect(() => {
     const initializeStorachaClient = async () => {
@@ -34,8 +73,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    initializeStorachaClient();
-  }, []);
+    if (!storachaClient) {
+      initializeStorachaClient();
+    }
+  }, [storachaClient]);
 
   const loginStoracha = async (email: string) => {
     if (!storachaClient) throw new Error('Storacha client not initialized');
@@ -55,11 +96,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const space = spaces[0];
       await storachaClient.setCurrentSpace(space.did());
+      
+      // Save session
+      const expiryTime = Date.now() + SESSION_DURATION;
+      sessionStorage.setItem(EXPIRY_KEY, expiryTime.toString());
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+        client: storachaClient,
+        email: emailTrimmed
+      }));
+      
       setIsStorachaAuthenticated(true);
     } catch (error) {
       console.error('Storacha login error:', error);
       throw error;
     }
+  };
+
+  const logout = () => {
+    sessionStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(EXPIRY_KEY);
+    setIsStorachaAuthenticated(false);
+    setIsMetaMaskAuthenticated(false);
+    router.push('/login');
   };
 
   const loginMetaMask = async () => {
@@ -141,7 +199,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [isStorachaAuthenticated, isMetaMaskAuthenticated, router]);
 
   return (
-    <AuthContext.Provider value={{ storachaClient, isStorachaAuthenticated, isMetaMaskAuthenticated, loginStoracha, loginMetaMask }}>
+    <AuthContext.Provider value={{ 
+      storachaClient, 
+      isStorachaAuthenticated, 
+      isMetaMaskAuthenticated, 
+      loginStoracha, 
+      loginMetaMask,
+      logout
+    }}>
       {children}
     </AuthContext.Provider>
   );

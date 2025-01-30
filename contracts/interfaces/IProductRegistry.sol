@@ -43,4 +43,5 @@ interface IProductRegistry {
         bool isValid
     );
     function verifyProductSignature(uint256 productId, bytes32 messageHash) external view returns (bool);
+    function getMyProducts() external view returns (Product[] memory);
 }
