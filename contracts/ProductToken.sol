@@ -2,11 +2,12 @@
 pragma solidity ^0.8.26;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./interfaces/IProductRegistry.sol";
 import "./interfaces/IBrandRegistry.sol";
 import "./interfaces/IManufacturerRegistry.sol";
 
-contract ProductToken is ERC1155 {
+contract ProductToken is ERC1155, ReentrancyGuard {
     IProductRegistry public productRegistry;
     IBrandRegistry public brandRegistry;
     IManufacturerRegistry public manufacturerRegistry;
@@ -89,10 +90,10 @@ contract ProductToken is ERC1155 {
         return baseMintFee + (quantity * perItemMintFee);
     }
 
-    function _collectFee(uint256 fee, string memory feeType) internal {
+    function _collectFee(uint256 fee, string memory feeType) internal nonReentrant {
         require(msg.value >= fee, string(abi.encodePacked("Insufficient fee. Required: ", uint2str(fee))));
-        payable(feeCollector).transfer(fee);
         emit FeeCollected(msg.sender, fee, feeType);
+        payable(feeCollector).transfer(fee);  // Moved after state changes
     }
 
     // Fee management functions
@@ -142,6 +143,9 @@ contract ProductToken is ERC1155 {
     uint256 private _batchIds;
     uint256 private _productIds;
 
+    // Batch size limits
+    uint256 public constant MAX_BATCH_SIZE = 100;
+
     // Batch tracking
     mapping(uint256 => BatchInfo) public batchInfo;
     mapping(uint256 => uint256) public batchManufacturer;
@@ -160,6 +164,7 @@ contract ProductToken is ERC1155 {
         uint256 quantity,
         string memory ipfsHash
     ) external payable returns (uint256) {
+        require(quantity > 0 && quantity <= MAX_BATCH_SIZE, "Invalid batch size");
         // Calculate and collect batch request fee
         uint256 fee = calculateBatchRequestFee(quantity, ipfsHash);
         _collectFee(fee, "batchRequest");

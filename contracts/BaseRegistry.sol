@@ -3,10 +3,11 @@ pragma solidity ^0.8.26;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./interfaces/IBaseRegistry.sol";
 
 
-contract BaseRegistry is IBaseRegistry {
+contract BaseRegistry is IBaseRegistry, ReentrancyGuard {
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
 
@@ -28,7 +29,7 @@ contract BaseRegistry is IBaseRegistry {
 
     modifier validEntityId(uint256 entityId) {
         require(entityId > 0, "Entity ID must be greater than 0");
-        require(entityId <= _entityCount, "Entity ID exceeds total count");
+        require(entityId <= _entityCount, "Entity does not exist");
         _;
     }
 
@@ -83,8 +84,8 @@ contract BaseRegistry is IBaseRegistry {
         return baseRegistrationFee + sizeFee;
     }
 
-    function _collectFee(uint256 fee, string memory feeType) internal {
-        require(msg.value >= fee, string(abi.encodePacked("Insufficient fee. Required: ", uint2str(fee))));
+    function _collectFee(uint256 fee, string memory feeType) internal nonReentrant {
+        require(msg.value >= fee, string(abi.encodePacked("Insufficient fee")));
         payable(feeCollector).transfer(fee);
         emit FeeCollected(msg.sender, fee, feeType);
     }
